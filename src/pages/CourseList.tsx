@@ -168,23 +168,25 @@ const CourseList: React.FC = () => {
       } else {
         values.name = values.display_name;
       }
-      // 处理 room_id 字段（mode="tags" 返回数组）
+      // 处理 room_id 字段（兼容旧数据可能为数组）
       if (Array.isArray(values.room_id)) {
         values.room_id = values.room_id.filter(Boolean).join(', ');
       }
       // 处理 room_name：始终从 room_id 同步最新房间名称，新地址自动录入教室表
       if (values.room_id) {
-        const firstRoomId = values.room_id.split(',')[0].trim();
-        const room = rooms.find(r => r.id === firstRoomId);
+        const roomId = String(values.room_id).split(',')[0].trim();
+        const room = rooms.find(r => r.id === roomId || r.name === roomId);
         if (room) {
           values.room_name = room.name;
         } else {
           // 用户输入了新地址，自动添加到教室库
-          values.room_name = firstRoomId;
+          values.room_name = roomId;
           if (dbService.addOrUpdateRoom) {
-            dbService.addOrUpdateRoom(firstRoomId);
+            dbService.addOrUpdateRoom(roomId);
           }
         }
+      } else {
+        values.room_name = '';
       }
       // 默认 active = true
       if (values.active === undefined) {
@@ -460,9 +462,36 @@ const CourseList: React.FC = () => {
           <Row gutter={16}>
             <Col span={24}>
               <Form.Item name="room_id" label="上课地址">
-                <Select mode="tags" placeholder="选择或输入上课地址" showSearch allowClear
-                  options={rooms.map(r => ({ label: r.name, value: r.id }))}
-                  maxTagCount={1}
+                <Select
+                  showSearch
+                  allowClear
+                  placeholder="选择或输入上课地址"
+                  onChange={(val) => {
+                    if (val && !rooms.find(r => r.id === val || r.name === val)) {
+                      // 新输入地址自动添加
+                      if (dbService.addOrUpdateRoom) {
+                        dbService.addOrUpdateRoom(val);
+                      }
+                    }
+                  }}
+                  notFoundContent={
+                    <div
+                      style={{ padding: '8px 12px', color: '#1890ff', cursor: 'pointer' }}
+                      onClick={() => {
+                        const val = (form.getFieldValue('room_id') || '').toString().trim();
+                        if (val) {
+                          if (dbService.addOrUpdateRoom) dbService.addOrUpdateRoom(val);
+                          setTimeout(() => setRooms([...(dbService.getAllRooms?.() || [])]), 50);
+                        }
+                      }}
+                    >
+                      + 添加新地址
+                    </div>
+                  }
+                  filterOption={(input, option) =>
+                    (option?.label as string ?? '').toLowerCase().includes(input.toLowerCase())
+                  }
+                  options={rooms.map(r => ({ label: r.name, value: r.name }))}
                 />
               </Form.Item>
             </Col>
