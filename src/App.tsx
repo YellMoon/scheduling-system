@@ -21,7 +21,7 @@ import InstitutionManager from './pages/InstitutionManager';
 import RevenueStatistics from './pages/RevenueStatistics';
 import SystemSettings from './pages/SystemSettings';
 import RoomManager from './pages/RoomManager';
-import SchoolManager from './pages/SchoolManager';
+import BatchSelection from './BatchSelection';
 
 const { Header, Content } = Layout;
 

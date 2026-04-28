@@ -5,6 +5,7 @@ import {
 import type { MenuProps } from 'antd';
 import dayjs, { Dayjs } from 'dayjs';
 import { CourseType, ScheduleStatus, Course, Teacher, Student } from '../types';
+import BatchSelection from './BatchSelection';
 import { v4 as uuidv4 } from 'uuid';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
 import isoWeek from 'dayjs/plugin/isoWeek';
@@ -768,6 +769,8 @@ const TwoWeeksView: React.FC<TwoWeeksViewProps> = ({
   onDeleteSchedule,
   onOpenStudentEdit
 }) => {
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
   const filteredSchedules = schedules.filter(schedule => {
     if (!selectedTeacherId) return false; // ⑥ 没有选中老师时不显示任何课程
     const course = courses.find(c => c.id === schedule.course_id);
@@ -901,6 +904,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
 const ScheduleCalendar: React.FC = () => {
   const [schedules, setSchedules] = useState<ScheduleEvent[]>([]);
+  const containerRef = React.useRef<HTMLDivElement>(null);
   const today = dayjs();
   let initialMonday = today.startOf('isoWeek'); // 周一为一周起点
   const [currentMonday, setCurrentMonday] = useState<Dayjs>(initialMonday);
@@ -1373,7 +1377,7 @@ const ScheduleCalendar: React.FC = () => {
           onTeacherChange={setSelectedTeacherId}
         />
 
-        <div style={{ flex: 1, paddingLeft: 16, overflow: 'auto' }}>
+        <div style={{ flex: 1, paddingLeft: 16, overflow: 'auto', position: 'relative' }} ref={containerRef}>
           <TwoWeeksView
             schedules={schedules}
             currentMonday={currentMonday}
@@ -1387,6 +1391,13 @@ const ScheduleCalendar: React.FC = () => {
             onResizeSchedule={handleResizeSchedule}
             onDeleteSchedule={handleDeleteSchedule}
             onOpenStudentEdit={handleOpenStudentEdit}
+          />
+          <BatchSelection
+            containerRef={containerRef}
+            schedules={schedules}
+            courses={courses}
+            currentMonday={currentMonday}
+            onSchedulesUpdated={setSchedules}
           />
         </div>
       </div>
