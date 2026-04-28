@@ -119,6 +119,27 @@ const CourseList: React.FC = () => {
     setModalVisible(true);
   };
 
+  const syncSchedulesRoomName = (savedCourse?: any) => {
+    try {
+      const saved = localStorage.getItem('schedules');
+      if (!saved) return;
+      const schedules = JSON.parse(saved);
+      const allCourses = dbService.getAllCourses();
+      let updated = false;
+      const newSchedules = schedules.map((s: any) => {
+        const course = allCourses.find((c: any) => c.id === s.course_id);
+        if (course && course.room_name && s.room !== course.room_name) {
+          updated = true;
+          return { ...s, room: course.room_name };
+        }
+        return s;
+      });
+      if (updated) {
+        localStorage.setItem('schedules', JSON.stringify(newSchedules));
+      }
+    } catch (e) { /* ignore */ }
+  };
+
   const handleEdit = (course: Course) => {
     setEditingCourse(course);
     setBillingUnit(course.billing_unit || BillingUnit.PER_HOUR);
@@ -151,9 +172,10 @@ const CourseList: React.FC = () => {
       if (Array.isArray(values.room_id)) {
         values.room_id = values.room_id.filter(Boolean).join(', ');
       }
-      // 处理 room_name：如果 room_id 是数组，取第一个的名称
-      if (!values.room_name && values.room_id) {
-        const room = rooms.find(r => r.id === values.room_id);
+      // 处理 room_name：始终从 room_id 同步最新房间名称
+      if (values.room_id) {
+        const firstRoomId = values.room_id.split(',')[0].trim();
+        const room = rooms.find(r => r.id === firstRoomId);
         if (room) values.room_name = room.name;
       }
       // 默认 active = true
@@ -163,9 +185,12 @@ const CourseList: React.FC = () => {
       if (editingCourse) {
         dbService.updateCourse(editingCourse.id, values);
         message.success('更新成功');
+        // 自动同步 localStorage 排课数据中的上课地址
+        syncSchedulesRoomName(values);
       } else {
         dbService.createCourse(values);
         message.success('添加成功');
+        syncSchedulesRoomName(values);
       }
       setModalVisible(false);
       // 重新加载数据确保列表刷新
@@ -227,7 +252,7 @@ const CourseList: React.FC = () => {
         </Tag>
       )
     },
-    { title: '教室', dataIndex: 'room_name', key: 'room_name', width: 100 },
+    { title: '上课地址', dataIndex: 'room_name', key: 'room_name', width: 100 },
     { title: '老师', dataIndex: 'teacher_name', key: 'teacher_name', width: 100 },
     {
       title: '操作',

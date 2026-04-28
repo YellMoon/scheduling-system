@@ -642,7 +642,7 @@ const DailyView: React.FC<DailyViewProps> = ({
           alignItems: 'center',
           boxShadow: isCopy ? '0 4px 20px rgba(82,196,26,0.3)' : '0 4px 20px rgba(24,144,255,0.3)'
         }}>
-          {/* ③ 两行布局，和真实课程框完全一致：课程名 + 教室&起止时间 */}
+          {/* ③ 两行布局，和真实课程框完全一致：课程名 + 上课地址&起止时间 */}
           <div style={{ fontSize: 12, fontWeight: 'bold', color: isCopy ? '#52c41a' : '#1890ff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.2, textAlign: 'center', maxWidth: ghostWidth - 8, flexShrink: 0 }}>
             {isCopy ? '📋 ' : ''}{dragState.schedule.course_name}
           </div>
@@ -939,6 +939,14 @@ const ScheduleCalendar: React.FC = () => {
         if (db.getAllCourses) {
           const coursesData = db.getAllCourses();
           setCourses(coursesData);
+          // 自动同步时间表的 room 与课程最新 room_name
+          setSchedules(prev => prev.map(s => {
+            const course = coursesData.find((c: Course) => c.id === s.course_id);
+            if (course && course.room_name && s.room !== course.room_name) {
+              return { ...s, room: course.room_name };
+            }
+            return s;
+          }));
         }
         if (db.getAllTeachers) {
           const teachersData = db.getAllTeachers();
@@ -1208,7 +1216,7 @@ const ScheduleCalendar: React.FC = () => {
                   course_id: values.courseId,
                   course_name: courseName,
                   status: values.status || ScheduleStatus.PLANNED,
-                  room: rooms.find(r => r.id === values.room)?.name || values.room,
+                  room: rooms.find(r => r.id === values.room)?.name || courses.find(c => c.id === values.courseId)?.room_name || values.room,
                   notes: values.notes,
                 }
               : s
@@ -1222,7 +1230,7 @@ const ScheduleCalendar: React.FC = () => {
             start_time: startTimeStr,
             end_time: endTimeStr,
             status: values.status || ScheduleStatus.PLANNED,
-            room: rooms.find(r => r.id === values.room)?.name || values.room,
+            room: rooms.find(r => r.id === values.room)?.name || courses.find(c => c.id === values.courseId)?.room_name || values.room,
             notes: values.notes,
           };
           newSchedules.push(newSchedule);

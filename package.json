@@ -1,6 +1,6 @@
 {
   "name": "scheduling-system",
-  "version": "2.1.1-0428",
+  "version": "2.1.3-0428",
   "description": "教务管理系统",
   "main": "public/electron.js",
   "homepage": ".",
