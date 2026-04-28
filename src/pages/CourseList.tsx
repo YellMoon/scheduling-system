@@ -463,35 +463,34 @@ const CourseList: React.FC = () => {
             <Col span={24}>
               <Form.Item name="room_id" label="上课地址">
                 <Select
+                  mode="tags"
+                  maxTagCount={1}
                   showSearch
                   allowClear
                   placeholder="选择或输入上课地址"
-                  onChange={(val) => {
-                    if (val && !rooms.find(r => r.id === val || r.name === val)) {
-                      // 新输入地址自动添加
+                  onChange={(values: string[]) => {
+                    // 单选：保留最后一个值
+                    if (values.length > 1) {
+                      const lastVal = values[values.length - 1];
+                      form.setFieldsValue({ room_id: [lastVal] });
+                    }
+                    // 新地址自动录入教室表
+                    const lastVal = values[values.length - 1];
+                    if (lastVal && !rooms.find(r => r.id === lastVal || r.name === lastVal)) {
                       if (dbService.addOrUpdateRoom) {
-                        dbService.addOrUpdateRoom(val);
+                        dbService.addOrUpdateRoom(lastVal);
+                        setTimeout(() => setRooms([...(dbService.getAllRooms?.() || [])]), 100);
                       }
                     }
                   }}
-                  notFoundContent={
-                    <div
-                      style={{ padding: '8px 12px', color: '#1890ff', cursor: 'pointer' }}
-                      onClick={() => {
-                        const val = (form.getFieldValue('room_id') || '').toString().trim();
-                        if (val) {
-                          if (dbService.addOrUpdateRoom) dbService.addOrUpdateRoom(val);
-                          setTimeout(() => setRooms([...(dbService.getAllRooms?.() || [])]), 50);
-                        }
-                      }}
-                    >
-                      + 添加新地址
-                    </div>
-                  }
                   filterOption={(input, option) =>
                     (option?.label as string ?? '').toLowerCase().includes(input.toLowerCase())
                   }
-                  options={rooms.map(r => ({ label: r.name, value: r.name }))}
+                  options={[
+                    ...rooms.map(r => ({ label: r.name, value: r.id })),
+                    // 已有地址用名字也作为值，兼容直接输入名称匹配的场景
+                    ...rooms.map(r => ({ label: r.name, value: r.name })),
+                  ]}
                 />
               </Form.Item>
             </Col>

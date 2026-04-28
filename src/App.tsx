@@ -78,13 +78,20 @@ const App: React.FC = () => {
     loadDb();
   }, []);
 
-  // 1 从localStorage读取或使用默认菜单排序
+  // 1 从localStorage读取或使用默认菜单排序（自动合并新增菜单项）
   const [menuOrder, setMenuOrder] = useState<PageKey[]>(() => {
     try {
       const saved = localStorage.getItem('menuOrder');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // 合并新增的菜单项：保留用户排序的同时追加新功能入口
+          const merged = [...parsed];
+          DEFAULT_ORDER.forEach(key => {
+            if (!merged.includes(key)) merged.push(key);
+          });
+          return merged;
+        }
       }
     } catch {}
     return DEFAULT_ORDER;
