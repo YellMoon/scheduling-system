@@ -9,7 +9,8 @@ import {
   BankOutlined,
   BarChartOutlined,
   SettingOutlined,
-  BankOutlined as SchoolOutlined
+  BankOutlined as SchoolOutlined,
+  EnvironmentOutlined
 } from '@ant-design/icons';
 import ScheduleCalendar from './pages/ScheduleCalendar';
 import StudentList from './pages/StudentList';
@@ -19,11 +20,12 @@ import PaymentList from './pages/PaymentList';
 import InstitutionManager from './pages/InstitutionManager';
 import RevenueStatistics from './pages/RevenueStatistics';
 import SystemSettings from './pages/SystemSettings';
+import RoomManager from './pages/RoomManager';
 import SchoolManager from './pages/SchoolManager';
 
 const { Header, Content } = Layout;
 
-type PageKey = 'schedules' | 'students' | 'teachers' | 'courses' | 'payments' | 'institutions' | 'statistics' | 'settings' | 'schools';
+type PageKey = 'schedules' | 'students' | 'teachers' | 'courses' | 'payments' | 'institutions' | 'rooms' | 'statistics' | 'settings' | 'schools';
 
 const PAGE_META: Record<PageKey, { icon: React.ReactNode; label: string }> = {
   schedules: { icon: <CalendarOutlined />, label: '课程表' },
@@ -32,12 +34,13 @@ const PAGE_META: Record<PageKey, { icon: React.ReactNode; label: string }> = {
   courses: { icon: <BookOutlined />, label: '课程管理' },
   payments: { icon: <DollarOutlined />, label: '缴费管理' },
   institutions: { icon: <BankOutlined />, label: '机构管理' },
+  rooms: { icon: <EnvironmentOutlined />, label: '地址管理' },
   statistics: { icon: <BarChartOutlined />, label: '收入统计' },
   schools: { icon: <SchoolOutlined />, label: '学校管理' },
   settings: { icon: <SettingOutlined />, label: '系统设置' },
 };
 
-const DEFAULT_ORDER: PageKey[] = ['schedules', 'students', 'teachers', 'courses', 'payments', 'institutions', 'statistics', 'schools', 'settings'];
+const DEFAULT_ORDER: PageKey[] = ['schedules', 'students', 'teachers', 'courses', 'payments', 'institutions', 'rooms', 'statistics', 'schools', 'settings'];
 
 let dbService: any = null;
 
@@ -122,6 +125,8 @@ const App: React.FC = () => {
         return <PaymentList />;
       case 'institutions':
         return <InstitutionManager />;
+      case 'rooms':
+        return <RoomManager />;
       case 'statistics':
         return <RevenueStatistics />;
       case 'schools':

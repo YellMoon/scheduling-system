@@ -106,6 +106,22 @@ class BrowserDatabaseService {
     this.saveData();
   }
 
+  updateRoom(id: string, updates: Partial<Room>): Room | undefined {
+    const index = this.data.rooms.findIndex(r => r.id === id);
+    if (index === -1) return undefined;
+    this.data.rooms[index] = { ...this.data.rooms[index], ...updates, updated_at: new Date().toISOString() };
+    this.saveData();
+    return this.data.rooms[index];
+  }
+
+  deleteRoom(id: string): boolean {
+    const index = this.data.rooms.findIndex(r => r.id === id);
+    if (index === -1) return false;
+    this.data.rooms.splice(index, 1);
+    this.saveData();
+    return true;
+  }
+
   // ========== 学校信息管理 ==========
 
   getSchoolNames(): string[] {
