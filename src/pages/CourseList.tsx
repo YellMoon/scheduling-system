@@ -172,11 +172,19 @@ const CourseList: React.FC = () => {
       if (Array.isArray(values.room_id)) {
         values.room_id = values.room_id.filter(Boolean).join(', ');
       }
-      // 处理 room_name：始终从 room_id 同步最新房间名称
+      // 处理 room_name：始终从 room_id 同步最新房间名称，新地址自动录入教室表
       if (values.room_id) {
         const firstRoomId = values.room_id.split(',')[0].trim();
         const room = rooms.find(r => r.id === firstRoomId);
-        if (room) values.room_name = room.name;
+        if (room) {
+          values.room_name = room.name;
+        } else {
+          // 用户输入了新地址，自动添加到教室库
+          values.room_name = firstRoomId;
+          if (dbService.addOrUpdateRoom) {
+            dbService.addOrUpdateRoom(firstRoomId);
+          }
+        }
       }
       // 默认 active = true
       if (values.active === undefined) {
