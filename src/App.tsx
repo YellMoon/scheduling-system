@@ -20,16 +20,16 @@ import PaymentList from './pages/PaymentList';
 import InstitutionManager from './pages/InstitutionManager';
 import RevenueStatistics from './pages/RevenueStatistics';
 import SystemSettings from './pages/SystemSettings';
+import SchoolManager from './pages/SchoolManager';
 import RoomManager from './pages/RoomManager';
-import BatchSelection from './BatchSelection';
 
 const { Header, Content } = Layout;
 
-type PageKey = 'schedules' | 'students' | 'teachers' | 'courses' | 'payments' | 'institutions' | 'rooms' | 'statistics' | 'settings' | 'schools';
+type PageKey = 'schedules' | 'students' | 'teachers' | 'courses' | 'payments' | 'institutions' | 'rooms' | 'statistics' | 'schools' | 'settings';
 
 const PAGE_META: Record<PageKey, { icon: React.ReactNode; label: string }> = {
   schedules: { icon: <CalendarOutlined />, label: '课程表' },
-  students: { icon: <UserOutlined />, label: '学生管理' },
+  students: { icon: <UserOutlined />, label: '学员管理' },
   teachers: { icon: <TeamOutlined />, label: '老师管理' },
   courses: { icon: <BookOutlined />, label: '课程管理' },
   payments: { icon: <DollarOutlined />, label: '缴费管理' },
@@ -78,7 +78,7 @@ const App: React.FC = () => {
     loadDb();
   }, []);
 
-  // 1 从localStorage读取或使用默认菜单排序（自动合并新增菜单项）
+  // 1 从localStorage读取或使用默认菜单排序
   const [menuOrder, setMenuOrder] = useState<PageKey[]>(() => {
     try {
       const saved = localStorage.getItem('menuOrder');
@@ -157,7 +157,7 @@ const App: React.FC = () => {
         position: 'sticky',
         top: 0,
         zIndex: 1000,
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)'
+        boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
       }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <h2 style={{ margin: '0 24px 0 0', color: '#1890ff', fontSize: 18 }}>📚 教务管理系统</h2>
@@ -171,58 +171,64 @@ const App: React.FC = () => {
                   e.dataTransfer.setData('text/plain', String(idx));
                   setDragIdx(idx);
                 }}
-                onDragOver={(e) => { e.preventDefault(); }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.currentTarget.style.background = '#f0f0f0';
+                }}
+                onDragLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent';
+                }}
                 onDrop={(e) => {
                   e.preventDefault();
-                  const fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
-                  if (!isNaN(fromIdx) && fromIdx !== idx) {
-                    const newOrder = [...menuOrder];
-                    const [moved] = newOrder.splice(fromIdx, 1);
-                    newOrder.splice(idx, 0, moved);
-                    setMenuOrder(newOrder);
-                    localStorage.setItem('menuOrder', JSON.stringify(newOrder));
-                  }
+                  const dragIndex = Number(e.dataTransfer.getData('text/plain'));
+                  const dropIndex = idx;
+                  if (dragIndex === dropIndex) return;
+                  const newMenuOrder = [...menuOrder];
+                  const draggedItem = newMenuOrder[dragIndex];
+                  newMenuOrder.splice(dragIndex, 1);
+                  newMenuOrder.splice(dropIndex, 0, draggedItem);
+                  setMenuOrder(newMenuOrder);
+                  localStorage.setItem('menuOrder', JSON.stringify(newMenuOrder));
+                  dragJustHappened.current = true;
                   setDragIdx(null);
                 }}
-                onDragEnd={() => setDragIdx(null)}
-                onClick={() => {
+                onDragEnd={() => {
+                  setDragIdx(null);
+                  setTimeout(() => {
+                    dragJustHappened.current = false;
+                  }, 100);
+                }}
+                onClick={(e) => {
                   if (dragJustHappened.current) {
+                    e.stopPropagation();
                     dragJustHappened.current = false;
                     return;
                   }
                   setCurrentPage(key);
                 }}
                 style={{
-                  padding: '0 16px',
-                  height: 46,
+                  cursor: 'grab',
+                  padding: '8px 12px',
+                  borderRadius: 6,
+                  background: currentPage === key ? '#1890ff' : 'transparent',
+                  color: currentPage === key ? 'white' : '#333',
+                  fontSize: 14,
+                  fontWeight: 500,
+                  userSelect: 'none',
                   display: 'flex',
                   alignItems: 'center',
-                  cursor: 'grab',
-                  borderBottom: currentPage === key ? '2px solid #1890ff' : '2px solid transparent',
-                  color: currentPage === key ? '#1890ff' : '#333',
-                  fontWeight: currentPage === key ? 'bold' : 'normal',
-                  opacity: dragIdx === idx ? 0.5 : 1,
-                  userSelect: 'none',
-                  transition: 'all 0.2s',
-                  whiteSpace: 'nowrap'
+                  gap: 6,
+                  transition: 'all 0.3s',
                 }}
-                title="拖拽可调整排序"
               >
                 {PAGE_META[key].icon}
-                <span style={{ marginLeft: 4 }}>{PAGE_META[key].label}</span>
+                {PAGE_META[key].label}
               </div>
             ))}
           </div>
         </div>
-        <div style={{ color: '#999' }}>{new Date().toLocaleDateString('zh-CN')}</div>
       </Header>
-      <Content style={{
-        margin: '0 16px 24px 16px',
-        padding: '64px 24px 24px 24px',
-        background: '#fff',
-        borderRadius: 8,
-        minHeight: 600
-      }}>
+      <Content style={{ padding: 24, minHeight: 'calc(100vh - 64px)' }}>
         {renderPage()}
       </Content>
     </Layout>
