@@ -938,7 +938,7 @@ const ScheduleCalendar: React.FC = () => {
         if (savedSchedules) setSchedules(JSON.parse(savedSchedules));
         if (db.getAllCourses) {
           const coursesData = db.getAllCourses();
-          setCourses(coursesData);
+          setCourses([...coursesData]);
           // 自动同步时间表的 room 与课程最新 room_name
           setSchedules(prev => prev.map(s => {
             const course = coursesData.find((c: Course) => c.id === s.course_id);
@@ -950,10 +950,10 @@ const ScheduleCalendar: React.FC = () => {
         }
         if (db.getAllTeachers) {
           const teachersData = db.getAllTeachers();
-          setTeachers(teachersData);
+          setTeachers([...teachersData]);
         }
         if (db.getAllStudents) {
-          setAllStudents(db.getAllStudents());
+          setAllStudents([...db.getAllStudents()]);
         }
         if (db.getAllRooms) {
           setRooms(db.getAllRooms());

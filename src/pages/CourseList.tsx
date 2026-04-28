@@ -69,11 +69,11 @@ const CourseList: React.FC = () => {
     const studentsData = dbService.getAllStudents();
     // 获取已保存的上课地址
     const roomsData = dbService.getAllRooms ? dbService.getAllRooms() : [];
-    setCourses(coursesData);
-    setStudents(studentsData);
-    setRooms(roomsData);
-    setInstitutions(institutionsData);
-    setTeachers(teachersData);
+    setCourses([...coursesData]);
+    setStudents([...studentsData]);
+    setRooms([...roomsData]);
+    setInstitutions([...institutionsData]);
+    setTeachers([...teachersData]);
   };
 
   // 过滤：只显示未结课
