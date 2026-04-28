@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+dist-new/
+build/
+win-unpacked-test/
+
+# Executables and installers
+*.exe
+*.exe.blockmap
+*.nsis.7z
+
+# Archives
+*.zip
+*.7z
+
+# Package locks (keep only package.json)
+.package-lock.json
+package-lock.json
+
+# Builder configs
+builder-debug.yml
+builder-effective-config.yaml
+latest.yml
+
+# Python cache
+__pycache__/
+*.pyc
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

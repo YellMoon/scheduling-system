@@ -1,0 +1,568 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Table, Button, Modal, Form, Input, InputNumber, Select, 
+  Space, message, Popconfirm, Tag, Card, Row, Col, Divider
+} from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, PlusCircleOutlined, MinusCircleOutlined } from '@ant-design/icons';
+import { Statistic } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import { Course, CourseType, CourseSourceType, Institution, BillingUnit, TeacherFeeMode, ServiceType, Teacher, StudentCoursePricing, Student } from '../types';
+
+const { Option } = Select;
+const { Item } = Form;
+
+const courseTypeMap: Record<CourseType, string> = {
+  [CourseType.ONE_ON_ONE]: '一对一',
+  [CourseType.ONE_ON_TWO]: '一对二',
+  [CourseType.GROUP]: '小组课',
+  [CourseType.LARGE_CLASS]: '大班课',
+};
+
+const semesterOptions = ['春学期', '秋学期', '寒假', '暑假'];
+
+const courseSourceTypeMap: Record<CourseSourceType, string> = {
+  [CourseSourceType.SELF]: '自有课程',
+  [CourseSourceType.INSTITUTION]: '机构排课',
+  [CourseSourceType.MIXED]: '混合班',
+};
+
+const billingUnitMap: Record<BillingUnit, string> = {
+  [BillingUnit.PER_HOUR]: '元/小时',
+  [BillingUnit.PER_SESSION]: '元/次',
+};
+
+const teacherFeeModeMap: Record<TeacherFeeMode, string> = {
+  [TeacherFeeMode.PER_SESSION]: '按一次课',
+  [TeacherFeeMode.PER_STUDENT]: '按学生分摊',
+};
+
+const serviceTypeMap: Record<ServiceType, string> = {
+  [ServiceType.IN_CENTER]: '中心内',
+  [ServiceType.AT_HOME]: '上门',
+};
+
+const CourseList: React.FC = () => {
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [filteredCourses, setFilteredCourses] = useState<Course[]>([]);
+  const [institutions, setInstitutions] = useState<Institution[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [rooms, setRooms] = useState<any[]>([]);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editingCourse, setEditingCourse] = useState<Course | null>(null);
+  const [filterType, setFilterType] = useState<CourseType | undefined>();
+  const [filterSource, setFilterSource] = useState<CourseSourceType | undefined>();
+  const [filterActive, setFilterActive] = useState<boolean | undefined>(true);
+  const [filterTeacher, setFilterTeacher] = useState<string | undefined>();
+  const [billingUnit, setBillingUnit] = useState<BillingUnit>(BillingUnit.PER_HOUR);
+  const [form] = Form.useForm();
+  const dbService = (window as any).dbService;
+
+  const loadData = async () => {
+    if (!dbService) {
+      console.warn('dbService not available yet');
+      return;
+    }
+    const coursesData = dbService.getAllCourses();
+    const institutionsData = dbService.getAllInstitutions();
+    const teachersData = dbService.getAllTeachers();
+    const studentsData = dbService.getAllStudents();
+    // 获取已保存的上课地址
+    const roomsData = dbService.getAllRooms ? dbService.getAllRooms() : [];
+    setCourses(coursesData);
+    setStudents(studentsData);
+    setRooms(roomsData);
+    setInstitutions(institutionsData);
+    setTeachers(teachersData);
+  };
+
+  // 过滤：只显示未结课
+  useEffect(() => {
+    let result = [...courses];
+    if (filterType) {
+      result = result.filter(c => c.type === filterType);
+    }
+    if (filterSource) {
+      result = result.filter(c => c.source_type === filterSource);
+    }
+    if (filterTeacher) {
+      result = result.filter(c => c.teacher_id === filterTeacher);
+    }
+    if (filterActive !== undefined) {
+      result = result.filter(c => c.active === filterActive);
+    }
+    setFilteredCourses(result);
+  }, [courses, filterType, filterSource, filterTeacher, filterActive]);
+
+  useEffect(() => {
+    let result = [...courses];
+    if (filterType) {
+      result = result.filter(c => c.type === filterType);
+    }
+    if (filterSource) {
+      result = result.filter(c => c.source_type === filterSource);
+    }
+    if (filterTeacher) {
+      result = result.filter(c => c.teacher_id === filterTeacher);
+    }
+    setFilteredCourses(result);
+  }, [courses, filterType, filterSource, filterTeacher]);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const handleAdd = () => {
+    setEditingCourse(null);
+    setBillingUnit(BillingUnit.PER_HOUR);
+    form.resetFields();
+    setModalVisible(true);
+  };
+
+  const handleEdit = (course: Course) => {
+    setEditingCourse(course);
+    setBillingUnit(course.billing_unit || BillingUnit.PER_HOUR);
+    form.resetFields();
+    form.setFieldsValue(course);
+    setModalVisible(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    dbService.deleteCourse(id);
+    message.success('删除成功');
+    loadData();
+  };
+
+  const handleSubmit = async () => {
+    try {
+      let values = await form.validateFields();
+      // 自动设置 teacher_name
+      if (values.teacher_id) {
+        const teacher = teachers.find(t => t.id === values.teacher_id);
+        values.teacher_name = teacher?.name;
+      }
+      // 自动拼接完整名称：年份 学期 课程名 -> name，display_name 保留纯课程名
+      if (values.year && values.semester && values.display_name) {
+        values.name = `${values.year} ${values.semester} ${values.display_name}`;
+      } else {
+        values.name = values.display_name;
+      }
+      // 处理 room_id 字段（mode="tags" 返回数组）
+      if (Array.isArray(values.room_id)) {
+        values.room_id = values.room_id.filter(Boolean).join(', ');
+      }
+      // 处理 room_name：如果 room_id 是数组，取第一个的名称
+      if (!values.room_name && values.room_id) {
+        const room = rooms.find(r => r.id === values.room_id);
+        if (room) values.room_name = room.name;
+      }
+      // 默认 active = true
+      if (values.active === undefined) {
+        values.active = true;
+      }
+      if (editingCourse) {
+        dbService.updateCourse(editingCourse.id, values);
+        message.success('更新成功');
+      } else {
+        dbService.createCourse(values);
+        message.success('添加成功');
+      }
+      setModalVisible(false);
+      // 重新加载数据确保列表刷新
+      setTimeout(() => loadData(), 100);
+    } catch (error: any) {
+      console.error('验证失败:', error);
+    }
+  };
+
+  const columns: ColumnsType<Course> = [
+    { title: '课程名称', dataIndex: 'name', key: 'name', width: 180 },
+    { 
+      title: '课程类型', 
+      dataIndex: 'type', 
+      key: 'type',
+      width: 90,
+      render: (type: CourseType) => <Tag color="blue">{courseTypeMap[type]}</Tag>
+    },
+    { 
+      title: '课程来源', 
+      dataIndex: 'source_type', 
+      key: 'source_type',
+      width: 100,
+      render: (sourceType: CourseSourceType) => (
+        <Tag color={sourceType === CourseSourceType.SELF ? 'green' : 'orange'}>
+          {courseSourceTypeMap[sourceType]}
+        </Tag>
+      )
+    },
+    { 
+      title: '学费', 
+      dataIndex: 'price_tuition', 
+      key: 'price_tuition',
+      width: 100,
+      render: (price: number, record: Course) => {
+        const unit = billingUnitMap[record.billing_unit];
+        return `¥${price}${unit}`;
+      }
+    },
+    { 
+      title: '课时费', 
+      dataIndex: 'price_teacher', 
+      key: 'price_teacher',
+      width: 100,
+      render: (price: number, record: Course) => {
+        const mode = teacherFeeModeMap[record.teacher_fee_mode];
+        const unit = billingUnitMap[record.billing_unit];
+        return `¥${price}${unit} (${mode})`;
+      }
+    },
+    { 
+      title: '状态',
+      dataIndex: 'active',
+      key: 'active',
+      width: 80,
+      render: (active: boolean) => (
+        <Tag color={active ? 'green' : 'red'}>
+          {active ? '未结课' : '已结课'}
+        </Tag>
+      )
+    },
+    { title: '教室', dataIndex: 'room_name', key: 'room_name', width: 100 },
+    { title: '老师', dataIndex: 'teacher_name', key: 'teacher_name', width: 100 },
+    {
+      title: '操作',
+      key: 'action',
+      width: 150,
+      render: (_, record) => (
+        <Space size="small">
+          <Button type="link" icon={<EditOutlined />} onClick={() => handleEdit(record)}>编辑</Button>
+          <Popconfirm title="确定删除吗？" onConfirm={() => handleDelete(record.id)}>
+            <Button type="link" danger icon={<DeleteOutlined />}>删除</Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
+  return (
+    <div>
+      <Card style={{ marginBottom: 16 }}>
+        <Row gutter={16}>
+          <Col span={6}>
+            <Statistic title="课程总数" value={courses.length} prefix="📚" />
+          </Col>
+          <Col span={6}>
+            <Statistic 
+              title="一对一课程" 
+              value={courses.filter(c => c.type === CourseType.ONE_ON_ONE).length} 
+              prefix="👨‍🏫"
+            />
+          </Col>
+          <Col span={6}>
+            <Statistic 
+              title="有老师的课程" 
+              value={courses.filter(c => c.teacher_id).length} 
+              prefix="👨‍🏫"
+            />
+          </Col>
+          <Col span={6}>
+            <Statistic 
+              title="自有课程" 
+              value={courses.filter(c => c.source_type === CourseSourceType.SELF).length} 
+              prefix="🏠"
+            />
+          </Col>
+        </Row>
+      </Card>
+
+      <Card>
+        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+          <Space wrap>
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>添加课程</Button>
+          </Space>
+          <Space wrap style={{ marginTop: 8 }}>
+            <Select
+              placeholder="筛选课程类型"
+              allowClear
+              style={{ width: 140 }}
+              value={filterType}
+              onChange={setFilterType}
+            >
+              <Option value={CourseType.ONE_ON_ONE}>一对一</Option>
+              <Option value={CourseType.ONE_ON_TWO}>一对二</Option>
+              <Option value={CourseType.GROUP}>小组课</Option>
+              <Option value={CourseType.LARGE_CLASS}>大班课</Option>
+            </Select>
+            <Select
+              placeholder="筛选课程来源"
+              allowClear
+              style={{ width: 140 }}
+              value={filterSource}
+              onChange={setFilterSource}
+            >
+              <Option value={CourseSourceType.SELF}>自有课程</Option>
+              <Option value={CourseSourceType.INSTITUTION}>机构排课</Option>
+              <Option value={CourseSourceType.MIXED}>混合班</Option>
+            </Select>
+            <Select
+              placeholder="筛选状态"
+              allowClear
+              style={{ width: 140 }}
+              value={filterActive}
+              onChange={setFilterActive}
+            >
+              <Option value={true}>未结课</Option>
+              <Option value={false}>已结课</Option>
+            </Select>
+            <Select
+              placeholder="筛选老师"
+              allowClear
+              showSearch
+              style={{ width: 180 }}
+              value={filterTeacher}
+              onChange={setFilterTeacher}
+            >
+              {teachers.map(t => (
+                <Option key={t.id} value={t.id}>{t.name}</Option>
+              ))}
+            </Select>
+          </Space>
+        </div>
+        
+        <Table 
+          columns={columns} 
+          dataSource={filteredCourses} 
+          rowKey="id"
+          pagination={{ pageSize: 20 }}
+          scroll={{ x: 1400 }}
+        />
+      </Card>
+
+      <Modal
+        title={editingCourse ? '编辑课程' : '添加课程'}
+        open={modalVisible}
+        onOk={handleSubmit}
+        onCancel={() => setModalVisible(false)}
+        width={750}
+      >
+        <Form form={form} layout="vertical">
+          <Divider>基本信息</Divider>
+
+          <Row gutter={16}>
+            <Col span={6}>
+              <Form.Item name="year" label="年份">
+                <InputNumber min={2020} max={2100} defaultValue={new Date().getFullYear()} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={6}>
+              <Form.Item name="semester" label="学期">
+                <Select placeholder="请选择学期">
+                  {semesterOptions.map(s => <Option key={s} value={s}>{s}</Option>)}
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="display_name" label="课程名称" rules={[{ required: true, message: '请输入课程名称' }]}>
+                <Input placeholder="请输入课程名称" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="type" label="课程类型" rules={[{ required: true, message: '请选择课程类型' }]}>
+                <Select placeholder="请选择">
+                  <Option value={CourseType.ONE_ON_ONE}>一对一</Option>
+                  <Option value={CourseType.ONE_ON_TWO}>一对二</Option>
+                  <Option value={CourseType.GROUP}>小组课</Option>
+                  <Option value={CourseType.LARGE_CLASS}>大班课</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="source_type" label="课程来源" rules={[{ required: true, message: '请选择课程来源' }]}>
+                <Select placeholder="请选择">
+                  <Option value={CourseSourceType.SELF}>自有课程</Option>
+                  <Option value={CourseSourceType.INSTITUTION}>机构排课</Option>
+                  <Option value={CourseSourceType.MIXED}>混合班</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+          
+          {form.getFieldValue('source_type') === CourseSourceType.INSTITUTION && (
+            <Form.Item name="institution_id" label="所属机构">
+              <Select placeholder="请选择机构" allowClear>
+                {institutions.map(inst => (
+                  <Option key={inst.id} value={inst.id}>{inst.name}</Option>
+                ))}
+              </Select>
+            </Form.Item>
+          )}
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="active" label="课程状态" initialValue={true}>
+                <Select>
+                  <Option value={true}>未结课（出现在排课选择中）</Option>
+                  <Option value={false}>已结课（不会出现在排课中）</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="teacher_id" label="选择老师" 
+                initialValue={teachers.length > 0 ? teachers[0].id : undefined}
+              >
+                <Select placeholder="选择老师" showSearch allowClear>
+                  {teachers.map(teacher => (
+                    <Option key={teacher.id} value={teacher.id}>
+                      {teacher.name} {teacher.subject && `(${teacher.subject})`}
+                    </Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={24}>
+              <Form.Item name="room_id" label="上课地址">
+                <Select mode="tags" placeholder="选择或输入上课地址" showSearch allowClear
+                  options={rooms.map(r => ({ label: r.name, value: r.id }))}
+                  maxTagCount={1}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+          
+          <Form.Item name="notes" label="备注">
+            <Input.TextArea rows={3} placeholder="其他备注信息" />
+          </Form.Item>
+
+          <Divider>学生绑定</Divider>
+          <div style={{ marginBottom: 8, fontSize: 12, color: '#666' }}>
+            根据课程类型自动限制学生人数：一对一=1，一对二=2，小组课=最多10，大班课无限制
+          </div>
+
+          <Form.List name="student_pricings">
+            {(fields, { add, remove }) => (
+              <>
+                {fields.map(({ key, name, ...restField }) => (
+                  <Row gutter={16} key={key} style={{ alignItems: 'center' }}>
+                    <Col span={10}>
+                      <Item
+                        {...restField}
+                        name={[name, 'student_id']}
+                        rules={[{ required: true, message: '请选择学生' }]}
+                      >
+                        <Select placeholder="选择学生" showSearch allowClear>
+                          {students.map(s => (
+                            <Option key={s.id} value={s.id}>{s.name}</Option>
+                          ))}
+                        </Select>
+                      </Item>
+                    </Col>
+                    <Col span={6}>
+                      <Item
+                        {...restField}
+                        name={[name, 'tuition']}
+                        rules={[{ required: true, message: '请输入学费' }]} 
+                        initialValue={form.getFieldValue('price_tuition') || 0}
+                      >
+                        <InputNumber min={0} prefix={billingUnit === BillingUnit.PER_HOUR ? '¥/h' : '¥/次'} style={{ width: '100%' }} 
+                          onChange={() => {
+                            // 延迟计算，等表单值更新后再汇总
+                            setTimeout(() => {
+                              const pricings = form.getFieldValue('student_pricings') || [];
+                              const totalTuition = pricings.reduce((sum: number, p: any) => sum + (p?.tuition || 0), 0);
+                              form.setFieldValue('price_tuition', totalTuition);
+                            }, 0);
+                          }}
+                        />
+                      </Item>
+                    </Col>
+                    <Col span={6}>
+                      <Item
+                        {...restField}
+                        name={[name, 'teacher_fee']}
+                        initialValue={form.getFieldValue('price_teacher') || 0}
+                      >
+                        <InputNumber min={0} prefix={billingUnit === BillingUnit.PER_HOUR ? '¥/h' : '¥/次'} style={{ width: '100%' }} 
+                          onChange={() => {
+                            setTimeout(() => {
+                              const pricings = form.getFieldValue('student_pricings') || [];
+                              const totalTeacherFee = pricings.reduce((sum: number, p: any) => sum + (p?.teacher_fee || 0), 0);
+                              form.setFieldValue('price_teacher', totalTeacherFee);
+                            }, 0);
+                          }}
+                        />
+                      </Item>
+                    </Col>
+                    <Col span={2}>
+                      <MinusCircleOutlined onClick={() => remove(name)} />
+                    </Col>
+                  </Row>
+                ))}
+                <Row>
+                  <Col span={24}>
+                    <Button type="dashed" onClick={() => {
+                      const type = form.getFieldValue('type');
+                      const maxCount = 
+                        type === CourseType.ONE_ON_ONE ? 1 :
+                        type === CourseType.ONE_ON_TWO ? 2 :
+                        type === CourseType.GROUP ? 10 : 999;
+                      const currentCount = (form.getFieldValue('student_pricings') || []).length;
+                      if (currentCount >= maxCount) {
+                        message.warning(`课程类型最多容纳 ${maxCount} 名学生`);
+                        return;
+                      }
+                      add();
+                    }} icon={<PlusCircleOutlined />}>
+                      添加学生
+                    </Button>
+                  </Col>
+                </Row>
+              </>
+            )}
+          </Form.List>
+
+          <Divider>费用设置</Divider>
+          
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="billing_unit" label="计费单位" initialValue={BillingUnit.PER_HOUR}>
+                <Select placeholder="请选择" onChange={(val) => setBillingUnit(val)}>
+                  <Option value={BillingUnit.PER_HOUR}>按小时计费</Option>
+                  <Option value={BillingUnit.PER_SESSION}>按次课计费</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="teacher_fee_mode" label="课时费计算方式" initialValue={TeacherFeeMode.PER_SESSION}>
+                <Select placeholder="请选择">
+                  <Option value={TeacherFeeMode.PER_SESSION}>按一次课计算</Option>
+                  <Option value={TeacherFeeMode.PER_STUDENT}>按学生分摊</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+          
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="price_tuition" label={`学费/${billingUnit === BillingUnit.PER_HOUR ? '小时' : '次'}（自动汇总）`} initialValue={0}>
+                <InputNumber min={0} style={{ width: '100%' }} prefix="¥" readOnly />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="price_teacher" label={`课时费/${billingUnit === BillingUnit.PER_HOUR ? '小时' : '次'}（自动汇总）`} initialValue={0}>
+                <InputNumber min={0} style={{ width: '100%' }} prefix="¥" readOnly />
+              </Form.Item>
+            </Col>
+          </Row>
+        </Form>
+      </Modal>
+    </div>
+  );
+};
+
+export default CourseList;
