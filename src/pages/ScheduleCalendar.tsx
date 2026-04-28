@@ -5,7 +5,7 @@ import {
 import type { MenuProps } from 'antd';
 import dayjs, { Dayjs } from 'dayjs';
 import { CourseType, ScheduleStatus, Course, Teacher, Student } from '../types';
-import BatchSelection from './BatchSelection';
+import useBatchSelection, { BatchVisuals, BatchState } from './BatchSelection';
 import { v4 as uuidv4 } from 'uuid';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
 import isoWeek from 'dayjs/plugin/isoWeek';
@@ -912,14 +912,13 @@ const ScheduleCalendar: React.FC = () => {
   const [editingSchedule, setEditingSchedule] = useState<ScheduleEvent | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [form] = Form.useForm();
+  const [courses, setCourses] = useState<Course[]>([]);
   
   const [studentEditModal, setStudentEditModal] = useState({
     open: false,
     schedule: null as ScheduleEvent | null
   });
   const [studentEditForm] = Form.useForm();
-  
-  const [courses, setCourses] = useState<Course[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [allStudents, setAllStudents] = useState<Student[]>([]);
   const [rooms, setRooms] = useState<any[]>([]);
@@ -929,6 +928,9 @@ const ScheduleCalendar: React.FC = () => {
   const [batchDates, setBatchDates] = useState<Dayjs[]>([dayjs()]);
   const [refreshModalVisible, setRefreshModalVisible] = useState(false);
   const [refreshDateRange, setRefreshDateRange] = useState<[Dayjs, Dayjs] | null>(null);
+
+  // 批量选择拖拽
+  const { batchState, handleMouseDown: handleBatchMouseDown, handleMouseMove: handleBatchMouseMove, handleMouseUp: handleBatchMouseUp, handleContextMenu: handleBatchContextMenu } = useBatchSelection(containerRef, schedules, courses, currentMonday, setSchedules);
 
   React.useEffect(() => {
     const loadData = () => {
@@ -1377,7 +1379,14 @@ const ScheduleCalendar: React.FC = () => {
           onTeacherChange={setSelectedTeacherId}
         />
 
-        <div style={{ flex: 1, paddingLeft: 16, overflow: 'auto', position: 'relative' }} ref={containerRef}>
+        <div
+          style={{ flex: 1, paddingLeft: 16, overflow: 'auto', position: 'relative' }}
+          ref={containerRef}
+          onMouseDown={handleBatchMouseDown}
+          onMouseMove={handleBatchMouseMove}
+          onMouseUp={handleBatchMouseUp}
+          onContextMenu={handleBatchContextMenu}
+        >
           <TwoWeeksView
             schedules={schedules}
             currentMonday={currentMonday}
@@ -1392,13 +1401,7 @@ const ScheduleCalendar: React.FC = () => {
             onDeleteSchedule={handleDeleteSchedule}
             onOpenStudentEdit={handleOpenStudentEdit}
           />
-          <BatchSelection
-            containerRef={containerRef}
-            schedules={schedules}
-            courses={courses}
-            currentMonday={currentMonday}
-            onSchedulesUpdated={setSchedules}
-          />
+          <BatchVisuals state={batchState} />
         </div>
       </div>
 
