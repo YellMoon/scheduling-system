@@ -1003,7 +1003,7 @@ const ScheduleCalendar: React.FC = () => {
       courseName: schedule.course_name,
       teacherId: course?.teacher_id,
       status: schedule.status,
-      room: schedule.room,
+      room: (course?.room_id && course.room_id.split(',')[0].trim()) || (rooms.find(r => r.name === schedule.room)?.id) || schedule.room,
       notes: schedule.notes,
     });
     setBatchDates([dayjs(dateStr)]);
@@ -1074,7 +1074,7 @@ const ScheduleCalendar: React.FC = () => {
       courseId: course.id,
       courseName: course.name,
       teacherId: course.teacher_id,
-      room: course.room_name,
+      room: course.room_id || course.room_name,
       status: ScheduleStatus.PLANNED,
     });
     setBatchDates([day]);
@@ -1208,7 +1208,7 @@ const ScheduleCalendar: React.FC = () => {
                   course_id: values.courseId,
                   course_name: courseName,
                   status: values.status || ScheduleStatus.PLANNED,
-                  room: values.room,
+                  room: rooms.find(r => r.id === values.room)?.name || values.room,
                   notes: values.notes,
                 }
               : s
@@ -1222,7 +1222,7 @@ const ScheduleCalendar: React.FC = () => {
             start_time: startTimeStr,
             end_time: endTimeStr,
             status: values.status || ScheduleStatus.PLANNED,
-            room: values.room,
+            room: rooms.find(r => r.id === values.room)?.name || values.room,
             notes: values.notes,
           };
           newSchedules.push(newSchedule);
@@ -1504,7 +1504,7 @@ const ScheduleCalendar: React.FC = () => {
                     const course = courses.find(c => c.id === courseId);
                     if (course) {
                       form.setFieldValue('courseName', course.display_name || course.name);
-                      form.setFieldValue('room', course.room_name);
+                      const roomId = (course.room_id && course.room_id.split(',')[0].trim()) || (rooms.find(r => r.name === course.room_name)?.id) || course.room_name || ''; form.setFieldValue('room', roomId);
                     }
                   }}
                 />
@@ -1524,12 +1524,12 @@ const ScheduleCalendar: React.FC = () => {
             </Select>
           </Form.Item>
           
-          <Form.Item name="room" label="教室">
+          <Form.Item name="room" label="上课地址">
             <Select
-              placeholder="选择教室"
+              placeholder="选择上课地址"
               showSearch
               allowClear
-              options={rooms.map(r => ({ label: r.name, value: r.name }))}
+              options={rooms.map(r => ({ label: r.address ? `${r.name} (${r.address})` : r.name, value: r.id }))}
             />
           </Form.Item>
           
@@ -1612,7 +1612,7 @@ const ScheduleCalendar: React.FC = () => {
       >
         <div style={{ marginBottom: 16 }}>
           <p>选择日期范围，系统将遍历该范围内的所有排课，重新从课程数据库读取最新信息并更新排课记录。</p>
-          <p style={{ color: '#999', fontSize: 12 }}>更新字段：课程名称、教室、老师名称、学生学费/课时费</p>
+          <p style={{ color: '#999', fontSize: 12 }}>更新字段：课程名称、上课地址、老师名称、学生学费/课时费</p>
         </div>
         <Form layout="vertical">
           <Form.Item label="日期范围" required>
